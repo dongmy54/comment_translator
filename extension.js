@@ -6,6 +6,7 @@ let outputChannel;
 let decorationType;
 let loadingDecoration;
 let translating = false;
+let lastTranslationRange = null; // 记录最后一次插入译文的范围
 const translationCache = new Map();
 
 function activate(context) {
@@ -15,16 +16,10 @@ function activate(context) {
 
         // 创建装饰器类型（用于显示翻译结果）
         decorationType = vscode.window.createTextEditorDecorationType({
-            after: {
-                contentText: '',
-                margin: '0.5em',
-                border: '1px solid #454545',
-                backgroundColor: '#1e1e1e',
-                color: '#89d185',
-                padding: '0.5em',
-                borderRadius: '4px'
-            },
-            isWholeLine: false
+            backgroundColor: '#1e1e1e',
+            border: '1px solid #454545',
+            borderRadius: '4px',
+            isWholeLine: true
         });
 
         // 创建加载中的装饰器类型
@@ -38,10 +33,19 @@ function activate(context) {
             }
         });
 
-        // 监听选择变化事件（用于清除装饰）
-        const selectionChangeDisposable = vscode.window.onDidChangeTextEditorSelection(event => {
-            if (event.textEditor) {
+        // 监听选择变化事件（用于清除装饰和译文）
+        const selectionChangeDisposable = vscode.window.onDidChangeTextEditorSelection(async event => {
+            if (event.textEditor && lastTranslationRange) {
+                // 清除装饰
                 clearDecorations(event.textEditor);
+                
+                // 删除之前插入的译文
+                await event.textEditor.edit(editBuilder => {
+                    if (lastTranslationRange) {
+                        editBuilder.delete(lastTranslationRange);
+                        lastTranslationRange = null;
+                    }
+                });
             }
         });
         context.subscriptions.push(selectionChangeDisposable);
@@ -159,30 +163,35 @@ async function translateAndDecorate(editor, text) {
         // 清除加载中的装饰
         editor.setDecorations(loadingDecoration, []);
 
-        // 创建装饰器选项
-        const decorationOptions = [{
-            range: new vscode.Range(
-                editor.selection.end.line,
+        // 在选中文本下方插入译文
+        await editor.edit(editBuilder => {
+            const endLine = editor.selection.end.line;
+            const indentation = editor.document.lineAt(endLine).text.match(/^\s*/)[0];
+            
+            // 构建译文内容
+            const translationBlock = [
+                `${indentation}/* 译文：`,
+                ...processedLines.map(line => `${indentation} * ${line}`),
+                `${indentation} */`
+            ].join('\n') + '\n';
+            
+            // 在选中内容下方插入译文
+            const insertPosition = new vscode.Position(endLine + 1, 0);
+            editBuilder.insert(insertPosition, translationBlock);
+            
+            // 记录插入的译文范围
+            lastTranslationRange = new vscode.Range(
+                endLine + 1,
                 0,
-                editor.selection.end.line + processedLines.length,
+                endLine + processedLines.length + 3, // +3 是因为有开始、结束行和换行符
                 0
-            ),
-            hoverMessage: '翻译结果',
-            renderOptions: {
-                after: {
-                    contentText: processedLines.map(line => '    ' + line).join('\n'),
-                    color: '#89d185',
-                    margin: '0.5em 2em',
-                    backgroundColor: '#1e1e1e',
-                    border: '1px solid #454545',
-                    padding: '0.5em',
-                    borderRadius: '4px'
-                }
-            }
-        }];
+            );
+        });
 
-        // 应用装饰
-        editor.setDecorations(decorationType, decorationOptions);
+        // 高亮显示译文区域
+        if (lastTranslationRange) {
+            editor.setDecorations(decorationType, [{ range: lastTranslationRange }]);
+        }
 
         // 记录日志
         logAPI('Translation Result', {
@@ -272,11 +281,53 @@ function isComment(text) {
 
 // 处理翻译文本的辅助函数
 function processTranslatedText(translatedText) {
-    const MAX_LINE_LENGTH = 40;
-    return translatedText
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0);
+    const MAX_LINE_LENGTH = 60; // 每行最大字符数
+    let lines = [];
+    let currentLine = '';
+    
+    // 按标点符号分割文本
+    const segments = translatedText.split(/([，。！？；])/);
+    
+    for (let i = 0; i < segments.length; i++) {
+        let segment = segments[i].trim();
+        if (!segment) continue;
+        
+        // 如果是标点符号，直接添加到当前行
+        if (/[，。！？；]/.test(segment)) {
+            currentLine += segment;
+            continue;
+        }
+        
+        // 检查添加新片段后是否超过最大长度
+        if (currentLine.length + segment.length > MAX_LINE_LENGTH) {
+            if (currentLine) {
+                lines.push(currentLine);
+                currentLine = '';
+            }
+        }
+        
+        currentLine += segment;
+        
+        // 如果下一个是标点符号，等待添加标点
+        if (i + 1 < segments.length && /[，。！？；]/.test(segments[i + 1])) {
+            continue;
+        }
+        
+        // 当前行已经足够长，或者是最后一个片段
+        if (currentLine.length >= MAX_LINE_LENGTH || i === segments.length - 1) {
+            if (currentLine) {
+                lines.push(currentLine);
+                currentLine = '';
+            }
+        }
+    }
+    
+    // 确保最后一行也被添加
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+    
+    return lines;
 }
 
 module.exports = {
