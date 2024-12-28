@@ -16,11 +16,15 @@ function activate(context) {
         // 创建装饰器类型（用于显示翻译结果）
         decorationType = vscode.window.createTextEditorDecorationType({
             after: {
-                margin: '0 0 0 1em',
-                textDecoration: 'none'
+                contentText: '',
+                margin: '0.5em',
+                border: '1px solid #454545',
+                backgroundColor: '#1e1e1e',
+                color: '#89d185',
+                padding: '0.5em',
+                borderRadius: '4px'
             },
-            backgroundColor: '#1e1e1e20',
-            isWholeLine: true
+            isWholeLine: false
         });
 
         // 创建加载中的装饰器类型
@@ -158,16 +162,21 @@ async function translateAndDecorate(editor, text) {
         // 创建装饰器选项
         const decorationOptions = [{
             range: new vscode.Range(
-                editor.selection.start.line,
-                0,
                 editor.selection.end.line,
-                editor.document.lineAt(editor.selection.end.line).text.length
+                0,
+                editor.selection.end.line + processedLines.length,
+                0
             ),
+            hoverMessage: '翻译结果',
             renderOptions: {
                 after: {
-                    contentText: '译文：' + processedLines.join(' '),
+                    contentText: processedLines.map(line => '    ' + line).join('\n'),
                     color: '#89d185',
-                    fontStyle: 'normal'
+                    margin: '0.5em 2em',
+                    backgroundColor: '#1e1e1e',
+                    border: '1px solid #454545',
+                    padding: '0.5em',
+                    borderRadius: '4px'
                 }
             }
         }];
