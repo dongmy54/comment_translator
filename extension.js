@@ -22,8 +22,8 @@ function activate(context) {
                 const line = document.lineAt(position.line);
                 const lineText = line.text;
 
-                // 检查是否是注释
-                if (!isComment(lineText)) return;
+                // 检查是否是注释，传入当前文档的语言ID
+                if (!isComment(lineText, document.languageId)) return;
 
                 // 获取缓存的翻译结果
                 const cacheKey = `${document.uri.toString()}-${position.line}`;
@@ -74,9 +74,9 @@ function activate(context) {
                     return;
                 }
 
-                // 检查是否是注释
+                // 检查是否是注释，传入当前文档的语言ID
                 const lines = text.split('\n');
-                if (!lines.some(line => isComment(line))) {
+                if (!lines.some(line => isComment(line, editor.document.languageId))) {
                     vscode.window.showInformationMessage('请选择注释文本进行翻译');
                     return;
                 }
@@ -214,14 +214,55 @@ function showLoadingDecoration(editor) {
 
 // 去除注释符号
 function removeCommentSymbols(text) {
+    // 如果是 HTML 注释
+    const trimmedText = text.trim();
+    if (trimmedText.startsWith('<!--') || trimmedText.includes('<!--')) {
+        // 处理多行 HTML 注释
+        let content = trimmedText;
+        
+        // 将多行注释合并成一行，保留换行符
+        content = content.replace(/<!--[\s\S]*?-->/g, match => {
+            // 移除开始和结束的注释标记
+            return match
+                .replace(/<!--/, '')  // 移除开始标记
+                .replace(/-->/, '')   // 移除结束标记
+                .split('\n')          // 按行分割
+                .map(line => {
+                    // 移除每行的空白和缩进
+                    line = line.trim();
+                    // 移除每行开头可能的装饰字符（*、-、>）和空白
+                    return line.replace(/^[*\s->]*\s*/, '');
+                })
+                .filter(line => line.length > 0) // 移除空行
+                .join('\n');
+        });
+        
+        return content.trim();
+    }
+
+    // 处理其他语言的注释
     return text
         .split('\n')
         .map(line => {
             line = line.trim();
+            
             // 移除单行注释符号
             if (line.startsWith('//')) {
                 return line.substring(2).trim();
             }
+            if (line.startsWith('#')) {
+                return line.substring(1).trim();
+            }
+            if (line.startsWith('--')) {
+                return line.substring(2).trim();
+            }
+            if (line.startsWith('%')) {
+                return line.substring(1).trim();
+            }
+            if (line.startsWith(';')) {
+                return line.substring(1).trim();
+            }
+            
             // 移除多行注释符号
             if (line.startsWith('/*')) {
                 line = line.substring(2);
@@ -232,6 +273,30 @@ function removeCommentSymbols(text) {
             if (line.startsWith('*')) {
                 line = line.substring(1);
             }
+            
+            // 处理其他特殊的多行注释
+            if (line.startsWith('"""') || line.startsWith("'''")) {
+                line = line.substring(3);
+            }
+            if (line.endsWith('"""') || line.endsWith("'''")) {
+                line = line.slice(0, -3);
+            }
+            if (line.startsWith('--[[')) {
+                line = line.substring(4);
+            }
+            if (line.endsWith(']]')) {
+                line = line.slice(0, -2);
+            }
+            if (line.startsWith('%{')) {
+                line = line.substring(2);
+            }
+            if (line.endsWith('%}')) {
+                line = line.slice(0, -2);
+            }
+            if (line.startsWith('=begin') || line.startsWith('=end')) {
+                return '';
+            }
+            
             return line.trim();
         })
         .filter(line => line.length > 0)
@@ -251,11 +316,115 @@ function logAPI(action, data) {
     }
 }
 
+// 语言注释前缀映射
+const languageCommentPrefixes = {
+    // C-style languages
+    'javascript': ['//', '/*', '*', '*/'],
+    'typescript': ['//', '/*', '*', '*/'],
+    'java': ['//', '/*', '*', '*/'],
+    'c': ['//', '/*', '*', '*/'],
+    'cpp': ['//', '/*', '*', '*/'],
+    'csharp': ['//', '/*', '*', '*/'],
+    // Scripting languages
+    'python': ['#', '"""', "'''"],
+    'ruby': ['#', '=begin', '=end'],
+    'perl': ['#'],
+    'shell': ['#'],
+    'bash': ['#'],
+    // Web languages
+    'html': ['<!--', '-->'],
+    'xml': ['<!--', '-->'],
+    'php': ['//', '#', '/*', '*', '*/'],
+    // Other languages
+    'lua': ['--', '--[[', ']]'],
+    'haskell': ['--', '{-', '-}'],
+    'sql': ['--', '/*', '*', '*/'],
+    'r': ['#'],
+    'matlab': ['%', '%{', '%}'],
+    'lisp': [';'],
+    'rust': ['//', '/*', '*', '*/'],
+    'go': ['//', '/*', '*', '*/'],
+    'swift': ['//', '/*', '*', '*/'],
+    'kotlin': ['//', '/*', '*', '*/'],
+    // Default fallback
+    'default': ['//', '/*', '*', '*/', '#', '--', ';']
+};
+
 // 检查是否是注释
-function isComment(text) {
+function isComment(text, languageId = 'default') {
     const trimmed = text.trim();
-    const commentPrefixes = ['//', '/*', '*', '*/'];
-    return commentPrefixes.some(prefix => trimmed.startsWith(prefix));
+    if (!trimmed) return false;
+
+    // 获取当前语言的注释前缀，如果没有则使用默认值
+    const commentPrefixes = languageCommentPrefixes[languageId] || languageCommentPrefixes['default'];
+    
+    // 检查是否以任何注释前缀开始
+    return commentPrefixes.some(prefix => {
+        if (languageId === 'html' || languageId === 'xml') {
+            // 特殊处理 HTML/XML 注释
+            // 检查当前行是否在多行注释内
+            const isInMultilineComment = (
+                trimmed.includes('<!--') || 
+                trimmed.includes('-->') || 
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment;
+        } else if (languageId === 'lua') {
+            // 特殊处理 Lua 的多行注释
+            const isInMultilineComment = (
+                trimmed.startsWith('--[[') || 
+                trimmed.endsWith(']]') ||
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment || trimmed.startsWith('--');
+        } else if (languageId === 'python') {
+            // 特殊处理 Python 的多行注释（文档字符串）
+            const isInMultilineComment = (
+                trimmed.startsWith('"""') || 
+                trimmed.endsWith('"""') ||
+                trimmed.startsWith("'''") || 
+                trimmed.endsWith("'''") ||
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment || trimmed.startsWith('#');
+        } else if (languageId === 'ruby') {
+            // 特殊处理 Ruby 的多行注释
+            const isInMultilineComment = (
+                trimmed === '=begin' || 
+                trimmed === '=end' ||
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment || trimmed.startsWith('#');
+        } else if (languageId === 'sql') {
+            // 特殊处理 SQL 的多行注释
+            const isInMultilineComment = (
+                trimmed.startsWith('/*') || 
+                trimmed.endsWith('*/') ||
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment || trimmed.startsWith('--');
+        } else if (languageId === 'go') {
+            // 特殊处理 Go 的多行注释
+            const isInMultilineComment = (
+                trimmed.startsWith('/*') || 
+                trimmed.endsWith('*/') ||
+                // 检查是否是注释内容（允许任意缩进和内容）
+                /^\s*[A-Za-z0-9\s*\-_]+.*$/.test(text)
+            );
+            return isInMultilineComment || trimmed.startsWith('//');
+        } else if (prefix.length === 1) {
+            // 单字符注释前缀（如 #, ;）需要精确匹配行首
+            return trimmed.startsWith(prefix);
+        } else {
+            // 多字符注释前缀（如 //, /*）可以在行中出现
+            return trimmed.includes(prefix);
+        }
+    });
 }
 
 // 处理翻译文本的辅助函数
