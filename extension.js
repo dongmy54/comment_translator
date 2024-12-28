@@ -3,7 +3,6 @@ const axios = require('axios');
 
 // 全局变量
 let outputChannel;
-let decorationType;
 let loadingDecoration;
 let translating = false;
 let lastTranslationRange = null; // 记录最后一次插入译文的范围
@@ -14,12 +13,29 @@ function activate(context) {
         // 创建输出通道
         outputChannel = vscode.window.createOutputChannel('Code Comment Translator');
 
-        // 创建装饰器类型（用于显示翻译结果）
-        decorationType = vscode.window.createTextEditorDecorationType({
-            backgroundColor: '#1e1e1e',
-            border: '1px solid #454545',
-            borderRadius: '4px',
-            isWholeLine: true
+        // 注册悬浮提供器
+        const hoverProvider = vscode.languages.registerHoverProvider('*', {
+            provideHover(document, position, token) {
+                const range = document.getWordRangeAtPosition(position);
+                if (!range) return;
+
+                const line = document.lineAt(position.line);
+                const lineText = line.text;
+
+                // 检查是否是注释
+                if (!isComment(lineText)) return;
+
+                // 获取缓存的翻译结果
+                const cacheKey = `${document.uri.toString()}-${position.line}`;
+                const cachedTranslation = translationCache.get(cacheKey);
+
+                if (cachedTranslation) {
+                    const content = new vscode.MarkdownString();
+                    content.appendMarkdown('### 译文\n');
+                    content.appendMarkdown(cachedTranslation.join('\n\n'));
+                    return new vscode.Hover(content);
+                }
+            }
         });
 
         // 创建加载中的装饰器类型
@@ -32,23 +48,6 @@ function activate(context) {
                 margin: '0 0 0 1em'
             }
         });
-
-        // 监听选择变化事件（用于清除装饰和译文）
-        const selectionChangeDisposable = vscode.window.onDidChangeTextEditorSelection(async event => {
-            if (event.textEditor && lastTranslationRange) {
-                // 清除装饰
-                clearDecorations(event.textEditor);
-                
-                // 删除之前插入的译文
-                await event.textEditor.edit(editBuilder => {
-                    if (lastTranslationRange) {
-                        editBuilder.delete(lastTranslationRange);
-                        lastTranslationRange = null;
-                    }
-                });
-            }
-        });
-        context.subscriptions.push(selectionChangeDisposable);
 
         // 注册命令
         const commandDisposable = vscode.commands.registerCommand('code-comment-translator.translate', async () => {
@@ -82,22 +81,21 @@ function activate(context) {
                     return;
                 }
 
-                await translateAndDecorate(editor, text);
+                await translateAndStore(editor, text);
+                vscode.window.showInformationMessage('翻译完成，请将鼠标悬停在注释上查看译文');
             } catch (error) {
                 vscode.window.showErrorMessage('Translation failed: ' + error.message);
             }
         });
 
-        context.subscriptions.push(commandDisposable);
+        // 注册到上下文
+        context.subscriptions.push(commandDisposable, hoverProvider);
         
         // 添加清理函数
         context.subscriptions.push({
             dispose: () => {
                 if (outputChannel) {
                     outputChannel.dispose();
-                }
-                if (decorationType) {
-                    decorationType.dispose();
                 }
                 if (loadingDecoration) {
                     loadingDecoration.dispose();
@@ -111,20 +109,18 @@ function activate(context) {
     }
 }
 
-// 添加显式的停用函数
+// 停用函数
 function deactivate() {
     if (outputChannel) {
         outputChannel.dispose();
-    }
-    if (decorationType) {
-        decorationType.dispose();
     }
     if (loadingDecoration) {
         loadingDecoration.dispose();
     }
 }
 
-async function translateAndDecorate(editor, text) {
+// 翻译并存储结果
+async function translateAndStore(editor, text) {
     try {
         translating = true;
         
@@ -133,7 +129,7 @@ async function translateAndDecorate(editor, text) {
         
         const startTime = Date.now();
         const cleanText = removeCommentSymbols(text);
-        
+
         // 调用翻译 API
         const response = await axios.post('https://api.deepseek.com/chat/completions', {
             model: "deepseek-chat",
@@ -163,34 +159,27 @@ async function translateAndDecorate(editor, text) {
         // 清除加载中的装饰
         editor.setDecorations(loadingDecoration, []);
 
-        // 在选中文本下方插入译文
-        await editor.edit(editBuilder => {
-            const endLine = editor.selection.end.line;
-            const indentation = editor.document.lineAt(endLine).text.match(/^\s*/)[0];
-            
-            // 构建译文内容
-            const translationBlock = [
-                `${indentation}/* 译文：`,
-                ...processedLines.map(line => `${indentation} * ${line}`),
-                `${indentation} */`
-            ].join('\n') + '\n';
-            
-            // 在选中内容下方插入译文
-            const insertPosition = new vscode.Position(endLine + 1, 0);
-            editBuilder.insert(insertPosition, translationBlock);
-            
-            // 记录插入的译文范围
-            lastTranslationRange = new vscode.Range(
-                endLine + 1,
-                0,
-                endLine + processedLines.length + 3, // +3 是因为有开始、结束行和换行符
-                0
-            );
-        });
+        // 创建悬浮框内容
+        const content = new vscode.MarkdownString();
+        content.appendMarkdown('### 译文\n');
+        content.appendMarkdown(processedLines.join('\n\n'));
 
-        // 高亮显示译文区域
-        if (lastTranslationRange) {
-            editor.setDecorations(decorationType, [{ range: lastTranslationRange }]);
+        // 获取选中文本的位置
+        const position = editor.selection.active;
+        
+        // 创建悬浮框
+        const hover = new vscode.Hover(content);
+        
+        // 显示悬浮框
+        // 注意：这是一个非公开API，但目前是显示悬浮框最直接的方式
+        await vscode.commands.executeCommand('editor.action.showHover');
+
+        // 存储翻译结果到缓存
+        const startLine = editor.selection.start.line;
+        const endLine = editor.selection.end.line;
+        for (let i = startLine; i <= endLine; i++) {
+            const cacheKey = `${editor.document.uri.toString()}-${i}`;
+            translationCache.set(cacheKey, processedLines);
         }
 
         // 记录日志
@@ -207,16 +196,6 @@ async function translateAndDecorate(editor, text) {
         editor.setDecorations(loadingDecoration, []);
     } finally {
         translating = false;
-    }
-}
-
-// 清除装饰
-function clearDecorations(editor) {
-    if (decorationType) {
-        editor.setDecorations(decorationType, []);
-    }
-    if (loadingDecoration) {
-        editor.setDecorations(loadingDecoration, []);
     }
 }
 
@@ -281,53 +260,45 @@ function isComment(text) {
 
 // 处理翻译文本的辅助函数
 function processTranslatedText(translatedText) {
-    const MAX_LINE_LENGTH = 60; // 每行最大字符数
-    let lines = [];
+    // 按句子分割文本
+    const sentences = translatedText.split(/([。！？])/);
+    const processedLines = [];
     let currentLine = '';
     
-    // 按标点符号分割文本
-    const segments = translatedText.split(/([，。！？；])/);
-    
-    for (let i = 0; i < segments.length; i++) {
-        let segment = segments[i].trim();
-        if (!segment) continue;
+    for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i].trim();
+        if (!sentence) continue;
         
         // 如果是标点符号，直接添加到当前行
-        if (/[，。！？；]/.test(segment)) {
-            currentLine += segment;
-            continue;
-        }
-        
-        // 检查添加新片段后是否超过最大长度
-        if (currentLine.length + segment.length > MAX_LINE_LENGTH) {
+        if (/[。！？]/.test(sentence)) {
+            currentLine += sentence;
             if (currentLine) {
-                lines.push(currentLine);
+                processedLines.push(currentLine);
                 currentLine = '';
             }
-        }
-        
-        currentLine += segment;
-        
-        // 如果下一个是标点符号，等待添加标点
-        if (i + 1 < segments.length && /[，。！？；]/.test(segments[i + 1])) {
-            continue;
-        }
-        
-        // 当前行已经足够长，或者是最后一个片段
-        if (currentLine.length >= MAX_LINE_LENGTH || i === segments.length - 1) {
-            if (currentLine) {
-                lines.push(currentLine);
-                currentLine = '';
+        } else {
+            // 如果当前行为空，直接添加句子
+            if (!currentLine) {
+                currentLine = sentence;
+            } else {
+                // 如果当前行加上新句子不会太长，则添加到当前行
+                if (currentLine.length + sentence.length <= 60) {
+                    currentLine += sentence;
+                } else {
+                    // 否则开始新行
+                    processedLines.push(currentLine);
+                    currentLine = sentence;
+                }
             }
         }
     }
     
     // 确保最后一行也被添加
     if (currentLine) {
-        lines.push(currentLine);
+        processedLines.push(currentLine);
     }
     
-    return lines;
+    return processedLines;
 }
 
 module.exports = {
