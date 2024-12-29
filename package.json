@@ -3,6 +3,7 @@
   "displayName": "Code Comment Translator",
   "description": "Translate code comments from English to Chinese",
   "version": "0.0.1",
+  "publisher": "dmy",
   "engines": {
     "vscode": "^1.85.0"
   },
