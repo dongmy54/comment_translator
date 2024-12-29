@@ -2,7 +2,7 @@
   "name": "code-comment-translator",
   "displayName": "Code Comment Translator",
   "description": "Translate code comments from English to Chinese",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "publisher": "dmy",
   "repository": {
     "type": "git",
