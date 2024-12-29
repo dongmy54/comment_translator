@@ -13,7 +13,7 @@
 
 ### 1. 配置翻译服务
 - 注册 [DeepSeek](https://platform.deepseek.com/) 账号
-- 在个人设置中获取 API Key
+- 在个人设置中获取 API Key(目前都是免费的，注册就有500W token 非常够用啦)
 - 安装插件后，打开vscode设置界面，搜索Code Comment Translator，输入 API Key保存
 
 ### 2. 选择注释文本
