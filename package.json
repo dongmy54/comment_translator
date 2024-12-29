@@ -4,6 +4,10 @@
   "description": "Translate code comments from English to Chinese",
   "version": "0.0.1",
   "publisher": "dmy",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dongmy54/comment_translator.git"
+  },
   "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
