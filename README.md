@@ -1,5 +1,5 @@
 # Code Comment Translator
-
+![效果图](./show.png)
 一个 VSCode 扩展，用于将代码注释翻译成中文。支持多种编程语言的单行和多行注释格式。
 
 ## 功能特点
