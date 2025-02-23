@@ -13,7 +13,9 @@
 ## 使用方法
 
 ### 1. 配置翻译服务
-当前支持`deepseek`和`openrouter`两种翻译服务，选择其中一种进行配置即可：
+当前支持`deepseek`和`openrouter`两种翻译服务，安装好后在设置中搜索`comment translator`,选择其中一种进行配置即可：
+![alt text](https://free-img.400040.xyz/4/2025/02/23/67bac6f80a289.png)
+关于key的获取:
 - 注册 [DeepSeek](https://platform.deepseek.com/) 账号
 - 在个人设置中获取 API Key(当前服务不够稳定，建议使用openrouter)
 - 或者注册 [OpenRouter](https://openrouter.ai/) 账号
