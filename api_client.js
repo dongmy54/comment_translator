@@ -1,12 +1,19 @@
 const axios = require('axios');
+const vscode = require('vscode');
 
-// 假设 apiType 和 apiKey 从配置中读取
-const openrouterModel = 'google/gemini-2.0-flash-exp:free'; // 默认 openrouter model，可以配置
-const apiType = 'deepseek'; // 默认使用 deepseek
-const deepseekApiKey ='xx'; // 示例，实际应从配置读取
-const openrouterApiKey = 'yy'; // 示例，实际应从配置读取
+// 从配置中读取 apiType 和 apiKey
+const openrouterModelDefault = 'google/gemini-2.0-flash-exp:free'; // 默认 openrouter model，可以配置
+const apiTypeDefault = 'deepseek'; // 默认使用 deepseek
 
-function getApiConfig(apiType, text) {
+function getApiConfig(text) {
+  // 从 VS Code 配置中读取
+  // codeCommentTranslator 和 package.json 中的配置项 "properties": {
+  //      "codeCommentTranslator.apiType": { 保持一致
+  const apiType = vscode.workspace.getConfiguration('codeCommentTranslator').get('apiType') || apiTypeDefault;
+  const deepseekApiKey = vscode.workspace.getConfiguration('codeCommentTranslator').get('deepseekApiKey');
+  const openrouterApiKey = vscode.workspace.getConfiguration('codeCommentTranslator').get('openrouterApiKey');
+  const openrouterModel = vscode.workspace.getConfiguration('codeCommentTranslator').get('openrouterModel') || openrouterModelDefault;
+
   let apiUrl = '';
   let requestBody = {};
   let headers = {
@@ -49,7 +56,7 @@ function getApiConfig(apiType, text) {
 }
 
 async function callTranslationAPI(text) {
-  const { apiUrl, requestBody, headers } = getApiConfig(apiType, text);
+  const { apiUrl, requestBody, headers } = getApiConfig(text);
 
   try {
     const response = await axios.post(apiUrl, requestBody, { headers });

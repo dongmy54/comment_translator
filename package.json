@@ -51,10 +51,41 @@
     "configuration": {
       "title": "Code Comment Translator",
       "properties": {
-        "codeCommentTranslator.apiKey": {
+        "codeCommentTranslator.apiType": {
+          "type": "string",
+          "default": "deepseek",
+          "enum": ["deepseek", "openrouter"],
+          "description": "API 类型 (deepseek 或 openrouter)"
+        },
+        "codeCommentTranslator.deepseekApiKey": {
           "type": "string",
           "default": "",
-          "description": "DeepSeek API Key"
+          "description": "DeepSeek API Key",
+          "if": {
+            "properties": {
+              "codeCommentTranslator.apiType": { "const": "deepseek" }
+            }
+          }
+        },
+        "codeCommentTranslator.openrouterApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenRouter API Key",
+          "if": {
+            "properties": {
+              "codeCommentTranslator.apiType": { "const": "openrouter" }
+            }
+          }
+        },
+        "codeCommentTranslator.openrouterModel": {
+          "type": "string",
+          "default": "google/gemini-2.0-flash-exp:free",
+          "description": "OpenRouter Model 名称",
+          "if": {
+            "properties": {
+              "codeCommentTranslator.apiType": { "const": "openrouter" }
+            }
+          }
         }
       }
     }
