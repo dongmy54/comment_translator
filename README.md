@@ -1,4 +1,4 @@
-# Code Comment Translator
+# Comment Translator
 ![效果图](https://free-img.400040.xyz/4/2024/12/29/6770bb791e931.png)
 一个 VSCode 扩展，用于将代码注释翻译成中文。支持多种编程语言的单行和多行注释格式。
 
@@ -13,9 +13,11 @@
 ## 使用方法
 
 ### 1. 配置翻译服务
+当前支持`deepseek`和`openrouter`两种翻译服务，选择其中一种进行配置即可：
 - 注册 [DeepSeek](https://platform.deepseek.com/) 账号
-- 在个人设置中获取 API Key(目前都是免费的，注册就有500W token 非常够用啦)
-- 安装插件后，打开vscode设置界面，搜索Code Comment Translator，输入 API Key保存
+- 在个人设置中获取 API Key(当前服务不够稳定，建议使用openrouter)
+- 或者注册 [OpenRouter](https://openrouter.ai/) 账号
+- 在个人设置中获取 API Key（推荐方式,里面有很多免费的模型可以用非常不错，默认使用gemini 2 模型）
 
 ### 2. 选择注释文本
 - **重要：** 选择时必须包含注释标记

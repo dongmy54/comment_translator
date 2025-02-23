@@ -2,7 +2,7 @@
   "name": "comment-translator",
   "displayName": "Comment Translator",
   "description": "Translate code comments",
-  "version": "0.1.11",
+  "version": "0.1.4",
   "publisher": "dmy",
   "repository": {
     "type": "git",
