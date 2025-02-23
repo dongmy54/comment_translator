@@ -12,7 +12,7 @@ const translationCache = new Map();
 function activate(context) {
     try {
         // 创建输出通道
-        outputChannel = vscode.window.createOutputChannel('Code Comment Translator');
+        outputChannel = vscode.window.createOutputChannel('Comment Translator');
 
         // 注册悬浮提供器
         const hoverProvider = vscode.languages.registerHoverProvider('*', {
@@ -51,7 +51,8 @@ function activate(context) {
         });
 
         // 注册命令
-        const commandDisposable = vscode.commands.registerCommand('code-comment-translator.translate', async () => {
+        // 这里的命令名要和package.json中的command一致
+        const commandDisposable = vscode.commands.registerCommand('comment-translator.translate', async () => {
             try {
                 const editor = vscode.window.activeTextEditor;
                 if (!editor) {

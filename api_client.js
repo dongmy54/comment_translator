@@ -9,10 +9,10 @@ function getApiConfig(text) {
   // 从 VS Code 配置中读取
   // codeCommentTranslator 和 package.json 中的配置项 "properties": {
   //      "codeCommentTranslator.apiType": { 保持一致
-  const apiType = vscode.workspace.getConfiguration('codeCommentTranslator').get('apiType') || apiTypeDefault;
-  const deepseekApiKey = vscode.workspace.getConfiguration('codeCommentTranslator').get('deepseekApiKey');
-  const openrouterApiKey = vscode.workspace.getConfiguration('codeCommentTranslator').get('openrouterApiKey');
-  const openrouterModel = vscode.workspace.getConfiguration('codeCommentTranslator').get('openrouterModel') || openrouterModelDefault;
+  const apiType = vscode.workspace.getConfiguration('CommentTranslator').get('apiType') || apiTypeDefault;
+  const deepseekApiKey = vscode.workspace.getConfiguration('CommentTranslator').get('deepseekApiKey');
+  const openrouterApiKey = vscode.workspace.getConfiguration('CommentTranslator').get('openrouterApiKey');
+  const openrouterModel = vscode.workspace.getConfiguration('CommentTranslator').get('openrouterModel') || openrouterModelDefault;
 
   let apiUrl = '';
   let requestBody = {};
@@ -57,12 +57,15 @@ function getApiConfig(text) {
 
 async function callTranslationAPI(text) {
   const { apiUrl, requestBody, headers } = getApiConfig(text);
+  let response = null; // 初始化 response 变量
+  // 打印出 apiUrl requestBody headers
+  console.log('API call Info url:', apiUrl, "\nrequestBody:", requestBody, "\nheaders:", headers);
 
   try {
-    const response = await axios.post(apiUrl, requestBody, { headers });
+    response = await axios.post(apiUrl, requestBody, { headers });
     return response.data;
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('API call url:', apiUrl,  "\nresponse:", response, "\nerr:", error);
     throw error;
   }
 }

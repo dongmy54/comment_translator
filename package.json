@@ -83,7 +83,7 @@
           "description": "OpenRouter Model 名称",
           "if": {
             "properties": {
-              "codeCommentTranslator.apiType": { "const": "openrouter" }
+              "CommentTranslator.apiType": { "const": "openrouter" }
             }
           }
         }
