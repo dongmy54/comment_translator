@@ -1,7 +1,7 @@
 {
-  "name": "code-comment-translator",
-  "displayName": "Code Comment Translator",
-  "description": "Translate code comments from English to Chinese",
+  "name": "comment-translator",
+  "displayName": "Comment Translator",
+  "description": "Translate code comments",
   "version": "0.1.11",
   "publisher": "dmy",
   "repository": {
@@ -27,7 +27,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "code-comment-translator.translate",
+        "command": "comment-translator.translate",
         "title": "Translate Comment"
       }
     ],
@@ -35,49 +35,49 @@
       "editor/context": [
         {
           "when": "editorHasSelection",
-          "command": "code-comment-translator.translate",
+          "command": "comment-translator.translate",
           "group": "navigation"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "code-comment-translator.translate",
+        "command": "comment-translator.translate",
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
         "when": "editorHasSelection"
       }
     ],
     "configuration": {
-      "title": "Code Comment Translator",
+      "title": "Comment Translator",
       "properties": {
-        "codeCommentTranslator.apiType": {
+        "CommentTranslator.apiType": {
           "type": "string",
           "default": "deepseek",
           "enum": ["deepseek", "openrouter"],
-          "description": "API 类型 (deepseek 或 openrouter)"
+          "description": "AI选择 (deepseek 或 openrouter，不用都配置，选择一个配置就行)"
         },
-        "codeCommentTranslator.deepseekApiKey": {
+        "CommentTranslator.deepseekApiKey": {
           "type": "string",
           "default": "",
           "description": "DeepSeek API Key",
           "if": {
             "properties": {
-              "codeCommentTranslator.apiType": { "const": "deepseek" }
+              "CommentTranslator.apiType": { "const": "deepseek" }
             }
           }
         },
-        "codeCommentTranslator.openrouterApiKey": {
+        "CommentTranslator.openrouterApiKey": {
           "type": "string",
           "default": "",
           "description": "OpenRouter API Key",
           "if": {
             "properties": {
-              "codeCommentTranslator.apiType": { "const": "openrouter" }
+              "CommentTranslator.apiType": { "const": "openrouter" }
             }
           }
         },
-        "codeCommentTranslator.openrouterModel": {
+        "CommentTranslator.openrouterModel": {
           "type": "string",
           "default": "google/gemini-2.0-flash-exp:free",
           "description": "OpenRouter Model 名称",
