@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const axios = require('axios');
+const apiClient = require('./api_client');
 
 // 全局变量
 let outputChannel;
@@ -131,27 +132,14 @@ async function translateAndStore(editor, text) {
         const cleanText = removeCommentSymbols(text);
 
         // 调用翻译 API
-        const response = await axios.post('https://api.deepseek.com/chat/completions', {
-            model: "deepseek-chat",
-            messages: [
-                {"role": "system", "content": "You are a helpful assistant that translates English text to Chinese."},
-                {"role": "user", "content": `将下面的英文翻译为中文：${cleanText}`}
-            ],
-            stream: false
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer sk-a5659a24538d4e57ac988d60cb1d7a68'
-            }
-        });
-
+        const resData = await apiClient.callTranslationAPI(cleanText);
         const endTime = Date.now();
 
-        if (!response.data?.choices?.[0]?.message?.content) {
+        if (!resData?.choices?.[0]?.message?.content) {
             throw new Error('Invalid response from translation API');
         }
 
-        const translatedText = response.data.choices[0].message.content;
+        const translatedText = resData.choices[0].message.content;
         
         // 处理翻译结果
         const processedLines = processTranslatedText(translatedText);

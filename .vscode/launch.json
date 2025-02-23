@@ -1,0 +1,18 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+     {
+        "type": "extensionHost",
+        "request": "launch",
+        "name": "Launch Extension", // 配置名称，可以自定义
+        "runtimeExecutable": "${execPath}", // 使用当前 VS Code 的执行路径
+        "args": [
+            "--extensionDevelopmentPath=${workspaceFolder}" // 指定插件项目路径
+        ],
+        //"preLaunchTask": "npm: watch" // (可选) 预先执行的任务，例如构建、监听文件变化等
+    }
+  ]
+}
